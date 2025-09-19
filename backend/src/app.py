@@ -1,47 +1,40 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
+from flask import Flask, request, jsonify
 import pickle
+import numpy as np
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)  # ✅ Allow React frontend (port 3000) to access Flask backend (port 5000)
 
 # --------------------------
-# Step 1: Load Dataset
+# Load Trained Crop Model
 # --------------------------
-# Dataset: Crop_recommendation.csv (from Kaggle)
-data = pd.read_csv("Crop_recommendation.csv")
+# Make sure you trained and saved it as "crop_model.pkl"
+crop_model = pickle.load(open("crop_model.pkl", "rb"))
 
 # --------------------------
-# Step 2: Prepare Features & Target
+# API Route for Prediction
 # --------------------------
-X = data.drop('label', axis=1)   # N, P, K, temperature, humidity, ph, rainfall
-y = data['label']                # Crop label
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        N, P, K = data['N'], data['P'], data['K']
+        temp, humidity, ph, rainfall = (
+            data['temperature'], data['humidity'], data['ph'], data['rainfall']
+        )
+
+        # Prepare input for model
+        features = np.array([[N, P, K, temp, humidity, ph, rainfall]])
+        crop = crop_model.predict(features)[0]
+
+        return jsonify({"crop": crop})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 # --------------------------
-# Step 3: Split Dataset
+# Run the Backend
 # --------------------------
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-# --------------------------
-# Step 4: Train Model
-# --------------------------
-crop_model = RandomForestClassifier(n_estimators=100, random_state=42)
-crop_model.fit(X_train, y_train)
-
-# Save the trained model (for backend use in Flask/FastAPI)
-pickle.dump(crop_model, open("crop_model.pkl", "wb"))
-
-# --------------------------
-# Step 5: Prediction Function
-# --------------------------
-def recommend_crop(N, P, K, temp, humidity, ph, rainfall):
-    features = np.array([[N, P, K, temp, humidity, ph, rainfall]])
-    prediction = crop_model.predict(features)[0]
-    return prediction
-
-# --------------------------
-# Step 6: Example Run
-# --------------------------
-result = recommend_crop(N=30, P=20, K=10, temp=28, humidity=65, ph=6.5, rainfall=200)
-print("✅ Recommended Crop:", result)
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
