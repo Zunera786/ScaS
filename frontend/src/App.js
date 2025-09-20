@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 
 function App() {
   const [formData, setFormData] = useState({
@@ -8,24 +8,25 @@ function App() {
     temperature: "",
     humidity: "",
     ph: "",
-    rainfall: ""
+    rainfall: "",
   });
 
-  const [result, setResult] = useState(null);
+  const [prediction, setPrediction] = useState("");
 
+  // handle form input changes
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // send data to backend
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const res = await fetch("http://localhost:5000/predict", {
+      const response = await fetch("http://127.0.0.1:5000/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
           N: Number(formData.N),
           P: Number(formData.P),
           K: Number(formData.K),
@@ -36,36 +37,41 @@ function App() {
         }),
       });
 
-      const data = await res.json();
-      setResult(data.crop || "Error in prediction");
-    } catch (err) {
-      console.error("Error:", err);
-      setResult("Error connecting to backend");
+      const data = await response.json();
+      setPrediction(data.prediction);
+    } catch (error) {
+      console.error("Error:", error);
     }
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">🌱 Smart Crop Advisor</h1>
+    <div style={{ maxWidth: "500px", margin: "auto", padding: "20px" }}>
+      <h2>🌱 Smart Crop Prediction</h2>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2 mt-4">
-        <input name="N" placeholder="Nitrogen" value={formData.N} onChange={handleChange} />
-        <input name="P" placeholder="Phosphorus" value={formData.P} onChange={handleChange} />
-        <input name="K" placeholder="Potassium" value={formData.K} onChange={handleChange} />
-        <input name="temperature" placeholder="Temperature" value={formData.temperature} onChange={handleChange} />
-        <input name="humidity" placeholder="Humidity" value={formData.humidity} onChange={handleChange} />
-        <input name="ph" placeholder="pH" value={formData.ph} onChange={handleChange} />
-        <input name="rainfall" placeholder="Rainfall" value={formData.rainfall} onChange={handleChange} />
+      <form onSubmit={handleSubmit}>
+        {Object.keys(formData).map((key) => (
+          <div key={key} style={{ marginBottom: "10px" }}>
+            <label>{key.toUpperCase()}:</label>
+            <input
+              type="number"
+              name={key}
+              value={formData[key]}
+              onChange={handleChange}
+              required
+              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+            />
+          </div>
+        ))}
 
-        <button type="submit" className="bg-green-500 text-white p-2 mt-2 rounded">
+        <button type="submit" style={{ padding: "10px 20px", marginTop: "10px" }}>
           Predict Crop
         </button>
       </form>
 
-      {result && (
-        <div className="mt-4">
-          <h2 className="text-lg font-semibold">✅ Recommended Crop: {result}</h2>
-        </div>
+      {prediction && (
+        <h3 style={{ marginTop: "20px" }}>
+          ✅ Recommended Crop: <span style={{ color: "green" }}>{prediction}</span>
+        </h3>
       )}
     </div>
   );
